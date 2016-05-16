@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
         for (uint64_t i = 0; i < n; i++)
             keys[i] = (static_cast<uint64_t>(rand()) << 32) | static_cast<uint64_t>(rand());
 
+    printf("operation,n,ops/s\n");
     ART_OLC::Tree tree(loadKey);
     //ART_ROWEX::Tree tree(loadKey);
 

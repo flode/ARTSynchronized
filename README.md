@@ -23,7 +23,7 @@ The techniques used are described in the followin papers:
 ## Execution instructions
 Run the example test with:
 
-    ./test n 0|1|2
+    ./example n 0|1|2
     
     n: number of keys
     0: sorted keys
