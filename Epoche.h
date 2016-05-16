@@ -103,10 +103,9 @@ namespace ART {
     };
 
     class EpocheGuardReadonly {
-        ThreadInfo &threadEpocheInfo;
     public:
 
-        EpocheGuardReadonly(ThreadInfo &threadEpocheInfo) : threadEpocheInfo(threadEpocheInfo) {
+        EpocheGuardReadonly(ThreadInfo &threadEpocheInfo) {
             threadEpocheInfo.getEpoche().enterEpoche(threadEpocheInfo);
         }
 
