@@ -11,7 +11,11 @@ The techniques used are described in the followin papers:
 ## Required packages
 - cmake
 - C++ 14 compiler
+- tbb
 - jemalloc
+
+for Debian/Ubuntu:
+sudo apt-get install cmake g++ libtbb-dev libjemalloc-dev
 
 ## Build instructions
     mkdir build
