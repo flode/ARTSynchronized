@@ -34,6 +34,14 @@ Run the example test with:
     1: dense keys
     2: sparse keys
 
+## Known problems
+
+Some g++ versions fail to link jemalloc.
+Ensure with ldd that jemalloc is linked.
+If it's not then either use clang or load jemalloc manually:
+
+    LD_PRELOAD=/path/to/jemalloc.so ./example ...
+
 ## License
 Copyright 2015-2016 Florian Scheibner
 

@@ -34,7 +34,7 @@ namespace ART_OLC {
 
     using Prefix = uint8_t[maxStoredPrefixLength];
 
-    class alignas(64) N {
+    class N {
     protected:
         N(NTypes type, const uint8_t *prefix, uint32_t prefixLength) {
             setType(type);
