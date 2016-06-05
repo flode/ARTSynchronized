@@ -90,5 +90,6 @@ int main(int argc, char **argv) {
                 std::chrono::system_clock::now() - starttime);
         printf("remove,%ld,%f\n", n, (n * 1.0) / duration.count());
     }
+    delete[] keys;
     return 0;
 }

@@ -47,17 +47,12 @@ namespace ART {
         DeletionList &deletionList;
 
 
-
         DeletionList & getDeletionList() const;
     public:
-        uint64_t hazardCounter = 0;
-        std::atomic<void*> hazardPointer[2];
 
         ThreadInfo(Epoche &epoche);
 
-        ThreadInfo(const ThreadInfo &ti) : epoche(ti.epoche), deletionList(ti.deletionList), hazardCounter(ti. hazardCounter) {
-            hazardPointer[0].store(ti.hazardPointer[0]);
-            hazardPointer[1].store(ti.hazardPointer[1]);
+        ThreadInfo(const ThreadInfo &ti) : epoche(ti.epoche), deletionList(ti.deletionList) {
         }
 
         ~ThreadInfo();

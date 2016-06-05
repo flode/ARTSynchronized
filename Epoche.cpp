@@ -101,7 +101,7 @@ inline void Epoche::exitEpocheAndCleanup(ThreadInfo &epocheInfo) {
 
             if (cur->epoche < oldestEpoche) {
                 for (std::size_t i = 0; i < cur->nodesCount; ++i) {
-                    //operator delete(cur->nodes[i]);
+                    operator delete(cur->nodes[i]);
                 }
                 deletionList.remove(cur, prev);
             } else {
@@ -128,7 +128,7 @@ inline Epoche::~Epoche() {
 
             assert(cur->epoche < oldestEpoche);
             for (std::size_t i = 0; i < cur->nodesCount; ++i) {
-                //operator delete(cur->nodes[i]);
+                operator delete(cur->nodes[i]);
             }
             d.remove(cur, prev);
             cur = next;
