@@ -5,8 +5,8 @@ Two different synchronization schemes are used, Optimistic Lock Coupling and Rea
 
 The techniques used are described in the followin papers:
 
-- "The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases": http://db.in.tum.de/~leis/papers/ART.pdf
-- "The ART of Practical Synchronization": DaMoN 2016
+- "The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases": https://db.in.tum.de/~leis/papers/ART.pdf
+- "The ART of Practical Synchronization": DaMoN 2016 https://dl.acm.org/citation.cfm?id=2933352
 
 ## Required packages
 - cmake
