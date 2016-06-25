@@ -3,7 +3,7 @@
 This repository provides an implementation of the Adaptive Radix Tree (ART) in a thread safe manner.
 Two different synchronization schemes are used, Optimistic Lock Coupling and Read-Optimized-Write-Exclusion (ROWEX).
 
-The techniques used are described in the followin papers:
+The techniques used are described in the following papers:
 
 - "The Adaptive Radix Tree: ARTful Indexing for Main-Memory Databases": https://db.in.tum.de/~leis/papers/ART.pdf
 - "The ART of Practical Synchronization": DaMoN 2016 https://dl.acm.org/citation.cfm?id=2933352
