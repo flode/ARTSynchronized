@@ -14,7 +14,7 @@ find_library(JemallocLib jemalloc)
 find_library(TbbLib tbb)
 find_package (Threads)
 
-set(ART_FILES OptimisticLockCoupling/Tree.cpp ROWEX/Tree.cpp)
+set(ART_FILES OptimisticLockCoupling/Tree.cpp ROWEX/Tree.cpp ART/Tree.cpp)
 add_library(ARTSynchronized ${ART_FILES})
 target_link_libraries(ARTSynchronized ${TbbLib} ${JemallocLib} ${CMAKE_THREAD_LIBS_INIT})
 

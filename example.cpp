@@ -6,6 +6,7 @@ using namespace std;
 
 #include "OptimisticLockCoupling/Tree.h"
 #include "ROWEX/Tree.h"
+#include "ART/Tree.h"
 
 void loadKey(TID tid, Key &key) {
     // Store the key of the tuple into the key vector

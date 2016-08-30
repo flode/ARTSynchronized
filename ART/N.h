@@ -2,8 +2,8 @@
 // Created by florian on 05.08.15.
 //
 
-#ifndef ART_ROWEX_N_H
-#define ART_ROWEX_N_H
+#ifndef ARTVERSION1_ART_N_H
+#define ARTVERSION1_ART_N_H
 //#define ART_NOREADLOCK
 //#define ART_NOWRITELOCK
 #include <stdint.h>
@@ -11,11 +11,13 @@
 #include <string.h>
 #include "../Key.h"
 #include "../Epoche.h"
+#include <tbb/tbb.h>
+
+using namespace ART;
 
 using TID = uint64_t;
 
-using namespace ART;
-namespace ART_ROWEX {
+namespace ART_unsynchronized {
 /*
  * SynchronizedTree
  * LockCouplingTree
@@ -30,89 +32,56 @@ namespace ART_ROWEX {
         N256 = 3
     };
 
-    static constexpr uint32_t maxStoredPrefixLength = 4;
-    struct Prefix {
-        uint32_t prefixCount = 0;
-        uint8_t prefix[maxStoredPrefixLength];
-    };
-    static_assert(sizeof(Prefix) == 8, "Prefix should be 64 bit long");
+    static constexpr uint32_t maxStoredPrefixLength = 10;
+
+    using Prefix = uint8_t[maxStoredPrefixLength];
 
     class N {
     protected:
-        N(NTypes type, uint32_t level, const uint8_t *prefix, uint32_t prefixLength) : level(level) {
+        N(NTypes type, const uint8_t *prefix, uint32_t prefixLength) {
             setType(type);
             setPrefix(prefix, prefixLength);
-        }
-
-        N(NTypes type, uint32_t level, const Prefix &prefi) : prefix(prefi), level(level) {
-            setType(type);
         }
 
         N(const N &) = delete;
 
         N(N &&) = delete;
 
-        //2b type 60b version 1b lock 1b obsolete
-        std::atomic<uint64_t> typeVersionLockObsolete{0b100};
         // version 1, unlocked, not obsolete
-        std::atomic<Prefix> prefix;
-        const uint32_t level;
-        uint16_t count = 0;
-        uint16_t compactCount = 0;
+        uint32_t prefixCount = 0;
 
+        NTypes type;
+    public:
+        uint8_t count = 0;
+    protected:
+        Prefix prefix;
 
 
         void setType(NTypes type);
-
-        static uint64_t convertTypeToVersion(NTypes type);
 
     public:
 
         NTypes getType() const;
 
-        uint32_t getLevel() const;
-
         uint32_t getCount() const;
-
-        bool isLocked(uint64_t version) const;
-
-        void writeLockOrRestart(bool &needRestart);
-
-        void lockVersionOrRestart(uint64_t &version, bool &needRestart);
-
-        void writeUnlock();
-
-        uint64_t getVersion() const;
-
-        /**
-         * returns true if node hasn't been changed in between
-         */
-        bool checkOrRestart(uint64_t startRead) const;
-        bool readUnlockOrRestart(uint64_t startRead) const;
-
-        static bool isObsolete(uint64_t version);
-
-        /**
-         * can only be called when node is locked
-         */
-        void writeUnlockObsolete() {
-            typeVersionLockObsolete.fetch_add(0b11);
-        }
 
         static N *getChild(const uint8_t k, N *node);
 
-        static void insertAndUnlock(N *node, N *parentNode, uint8_t keyParent, uint8_t key, N *val,
-                                    ThreadInfo &threadInfo, bool &needRestart);
+        static void insertA(N *node, N *parentNode, uint8_t keyParent, uint8_t key, N *val);
 
         static void change(N *node, uint8_t key, N *val);
 
-        static void removeAndUnlock(N *node, uint8_t key, N *parentNode, uint8_t keyParent, ThreadInfo &threadInfo, bool &needRestart);
+        static void removeA(N *node, uint8_t key, N *parentNode, uint8_t keyParent);
 
-        Prefix getPrefi() const;
+        bool hasPrefix() const;
+
+        const uint8_t *getPrefix() const;
 
         void setPrefix(const uint8_t *prefix, uint32_t length);
 
         void addPrefixBefore(N *node, uint8_t key);
+
+        uint32_t getPrefixLength() const;
 
         static TID getLeaf(const N *n);
 
@@ -122,7 +91,7 @@ namespace ART_ROWEX {
 
         static N *getAnyChild(const N *n);
 
-        static TID getAnyChildTid(const N *n);
+        static TID getAnyChildTid(N *n);
 
         static void deleteChildren(N *node);
 
@@ -131,36 +100,25 @@ namespace ART_ROWEX {
         static std::tuple<N *, uint8_t> getSecondChild(N *node, const uint8_t k);
 
         template<typename curN, typename biggerN>
-        static void insertGrow(curN *n, N *parentNode, uint8_t keyParent, uint8_t key, N *val, ThreadInfo &threadInfo, bool &needRestart);
-
-        template<typename curN>
-        static void insertCompact(curN *n, N *parentNode, uint8_t keyParent, uint8_t key, N *val, ThreadInfo &threadInfo, bool &needRestart);
+        static void insertGrow(curN *n, N *parentNode, uint8_t keyParent, uint8_t key, N *val);
 
         template<typename curN, typename smallerN>
-        static void removeAndShrink(curN *n, N *parentNode, uint8_t keyParent, uint8_t key, ThreadInfo &threadInfo, bool &needRestart);
+        static void removeAndShrink(curN *n, N *parentNode, uint8_t keyParent, uint8_t key);
 
         static void getChildren(const N *node, uint8_t start, uint8_t end, std::tuple<uint8_t, N *> children[],
                                 uint32_t &childrenCount);
     };
 
-
     class N4 : public N {
     public:
-
-        std::atomic<uint8_t> keys[4];
-        std::atomic<N *> children[4];
+        //TODO
+        //atomic??
+        uint8_t keys[4];
+        N *children[4] = {nullptr, nullptr, nullptr, nullptr};
 
     public:
-        N4(uint32_t level, const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N4, level, prefix,
-                                                                             prefixLength) {
-            memset(keys, 0, sizeof(keys));
-            memset(children, 0, sizeof(children));
-        }
-
-        N4(uint32_t level, const Prefix &prefi) : N(NTypes::N4, level, prefi) {
-            memset(keys, 0, sizeof(keys));
-            memset(children, 0, sizeof(children));
-        }
+        N4(const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N4, prefix,
+                                                                             prefixLength) { }
 
         bool insert(uint8_t key, N *n);
 
@@ -185,8 +143,8 @@ namespace ART_ROWEX {
 
     class N16 : public N {
     public:
-        std::atomic<uint8_t> keys[16];
-        std::atomic<N *> children[16];
+        uint8_t keys[16];
+        N *children[16];
 
         static uint8_t flipSign(uint8_t keyByte) {
             // Flip the sign bit, enables signed SSE comparison of unsigned values, used by Node16
@@ -207,16 +165,11 @@ namespace ART_ROWEX {
 #endif
         }
 
-        std::atomic<N *> *getChildPos(const uint8_t k);
+        N *const *getChildPos(const uint8_t k) const;
 
     public:
-        N16(uint32_t level, const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N16, level, prefix,
+        N16(const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N16, prefix,
                                                                               prefixLength) {
-            memset(keys, 0, sizeof(keys));
-            memset(children, 0, sizeof(children));
-        }
-
-        N16(uint32_t level, const Prefix &prefi) : N(NTypes::N16, level, prefi) {
             memset(keys, 0, sizeof(keys));
             memset(children, 0, sizeof(children));
         }
@@ -241,18 +194,13 @@ namespace ART_ROWEX {
     };
 
     class N48 : public N {
-        std::atomic<uint8_t> childIndex[256];
-        std::atomic<N *> children[48];
+        uint8_t childIndex[256];
+        N *children[48];
     public:
         static const uint8_t emptyMarker = 48;
 
-        N48(uint32_t level, const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N48, level, prefix,
+        N48(const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N48, prefix,
                                                                               prefixLength) {
-            memset(childIndex, emptyMarker, sizeof(childIndex));
-            memset(children, 0, sizeof(children));
-        }
-
-        N48(uint32_t level, const Prefix &prefi) : N(NTypes::N48, level, prefi) {
             memset(childIndex, emptyMarker, sizeof(childIndex));
             memset(children, 0, sizeof(children));
         }
@@ -277,15 +225,11 @@ namespace ART_ROWEX {
     };
 
     class N256 : public N {
-        std::atomic<N *> children[256];
+        N *children[256];
 
     public:
-        N256(uint32_t level, const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N256, level, prefix,
+        N256(const uint8_t *prefix, uint32_t prefixLength) : N(NTypes::N256, prefix,
                                                                                prefixLength) {
-            memset(children, '\0', sizeof(children));
-        }
-
-        N256(uint32_t level, const Prefix &prefi) : N(NTypes::N256, level, prefi) {
             memset(children, '\0', sizeof(children));
         }
 
@@ -308,4 +252,4 @@ namespace ART_ROWEX {
                          uint32_t &childrenCount) const;
     };
 }
-#endif //ART_ROWEX_N_H
+#endif //ARTVERSION1_ARTVERSION_H
