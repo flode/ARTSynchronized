@@ -34,6 +34,9 @@ Run the example test with:
     1: dense keys
     2: sparse keys
 
+Note that there may not be any keys that are prefixes of other keys.
+This can be achieved by all keys having the same length or by always passing the null terminator as part of the key.
+
 ## Known problems
 
 Some g++ versions fail to link jemalloc.
