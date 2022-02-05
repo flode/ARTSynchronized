@@ -73,6 +73,8 @@ namespace ART_OLC {
         bool lookupRange(const Key &start, const Key &end, Key &continueKey, TID result[], std::size_t resultLen,
                          std::size_t &resultCount, ThreadInfo &threadEpocheInfo) const;
 
+        bool lookupRange(const Key &start, TID result[], std::size_t resultLen, std::size_t &resultCount, ThreadInfo &threadEpocheInfo) const;
+
         void insert(const Key &k, TID tid, ThreadInfo &epocheInfo);
 
         void remove(const Key &k, TID tid, ThreadInfo &epocheInfo);
