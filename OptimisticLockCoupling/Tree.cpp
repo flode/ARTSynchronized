@@ -322,6 +322,172 @@ namespace ART_OLC {
         }
     }
 
+    bool Tree::lookupRange(const Key &start, TID result[],
+                                std::size_t resultSize, std::size_t &resultsFound, ThreadInfo &threadEpocheInfo) const {
+        
+        EpocheGuard epocheGuard(threadEpocheInfo);
+        TID toContinue = 0;
+        std::function<void(const N *)> copy = [&result, &resultSize, &resultsFound, &toContinue, &copy](const N *node) {
+            if (N::isLeaf(node)) {
+                if (resultsFound == resultSize) {
+                    toContinue = N::getLeaf(node);
+                    return;
+                }
+                result[resultsFound] = N::getLeaf(node);
+                resultsFound++;
+            } else {
+                std::tuple<uint8_t, N *> children[256];
+                uint32_t childrenCount = 0;
+                N::getChildren(node, 0u, 255u, children, childrenCount);
+                for (uint32_t i = 0; i < childrenCount; ++i) {
+                    const N *n = std::get<1>(children[i]);
+                    copy(n);
+                    if (toContinue != 0) {
+                        break;
+                    }
+                }
+            }
+        };
+        std::function<void(N *, uint8_t, uint32_t, const N *, uint64_t)> findStart = [&copy, &start, &findStart, &toContinue, this](
+                N *node, uint8_t nodeK, uint32_t level, const N *parentNode, uint64_t vp) {
+            if (N::isLeaf(node)) {
+                copy(node);
+                return;
+            }
+            uint64_t v;
+            PCCompareResults prefixResult;
+
+            {
+                readAgain:
+                bool needRestart = false;
+                v = node->readLockOrRestart(needRestart);
+                if (needRestart) goto readAgain;
+
+                prefixResult = checkPrefixCompare(node, start, 0, level, loadKey, needRestart);
+                if (needRestart) goto readAgain;
+
+                parentNode->readUnlockOrRestart(vp, needRestart);
+                if (needRestart) {
+                    readParentAgain:
+                    vp = parentNode->readLockOrRestart(needRestart);
+                    if (needRestart) goto readParentAgain;
+
+                    node = N::getChild(nodeK, parentNode);
+
+                    parentNode->readUnlockOrRestart(vp, needRestart);
+                    if (needRestart) goto readParentAgain;
+
+                    if (node == nullptr) {
+                        return;
+                    }
+                    if (N::isLeaf(node)) {
+                        copy(node);
+                        return;
+                    }
+                    goto readAgain;
+                }
+                node->readUnlockOrRestart(v, needRestart);
+                if (needRestart) goto readAgain;
+            }
+
+            switch (prefixResult) {
+                case PCCompareResults::Bigger:
+                    copy(node);
+                    break;
+                case PCCompareResults::Equal: {
+                    uint8_t startLevel = (start.getKeyLen() > level) ? start[level] : 0;
+                    std::tuple<uint8_t, N *> children[256];
+                    uint32_t childrenCount = 0;
+                    v = N::getChildren(node, startLevel, 255, children, childrenCount);
+                    for (uint32_t i = 0; i < childrenCount; ++i) {
+                        const uint8_t k = std::get<0>(children[i]);
+                        N *n = std::get<1>(children[i]);
+                        if (k == startLevel) {
+                            findStart(n, k, level + 1, node, v);
+                        } else if (k > startLevel) {
+                            copy(n);
+                        }
+                        if (toContinue != 0) {
+                            break;
+                        }
+                    }
+                    break;
+                }
+                case PCCompareResults::Smaller:
+                    break;
+            }
+        };
+
+        restart:
+        bool needRestart = false;
+
+        resultsFound = 0;
+
+        uint32_t level = 0;
+        N *node = nullptr;
+        N *nextNode = root;
+        N *parentNode;
+        uint64_t v = 0;
+        uint64_t vp;
+
+        while (true) {
+            parentNode = node;
+            vp = v;
+            node = nextNode;
+            PCCompareResults compareResult;
+            v = node->readLockOrRestart(needRestart);
+            if (needRestart) goto restart;
+            compareResult = checkPrefixCompare(node, start, 0, level, loadKey, needRestart);
+            if (needRestart) goto restart;
+            if (parentNode != nullptr) {
+                parentNode->readUnlockOrRestart(vp, needRestart);
+                if (needRestart) goto restart;
+            }
+            node->readUnlockOrRestart(v, needRestart);
+            if (needRestart) goto restart;
+
+            switch (compareResult) {
+                case PCCompareResults::Smaller: {
+                    return false;
+                }
+                case PCCompareResults::Equal:
+                case PCCompareResults::Bigger: {
+                    uint8_t startLevel = (start.getKeyLen() > level) ? start[level] : 0;
+                    uint8_t endLevel = 255;
+                    if (startLevel != endLevel) {
+                        std::tuple<uint8_t, N *> children[256];
+                        uint32_t childrenCount = 0;
+                        v = N::getChildren(node, startLevel, endLevel, children, childrenCount);
+                        for (uint32_t i = 0; i < childrenCount; ++i) {
+                            const uint8_t k = std::get<0>(children[i]);
+                            N *n = std::get<1>(children[i]);
+                            if (k == startLevel) {
+                                findStart(n, k, level + 1, node, v);
+                            } else if (k > startLevel) {
+                                copy(n);
+                            }
+                            if (toContinue) {
+                                break;
+                            }
+                        }
+                    } else {
+                        nextNode = N::getChild(startLevel, node);
+                        node->readUnlockOrRestart(v, needRestart);
+                        if (needRestart) goto restart;
+                        level++;
+                        continue;
+                    }
+                    break;
+                }
+            }
+            break;
+        }
+        
+        return false;
+        
+    }
+
+
 
     TID Tree::checkKey(const TID tid, const Key &k) const {
         Key kt;
