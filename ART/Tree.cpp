@@ -382,13 +382,13 @@ namespace ART_unsynchronized {
                                 //N::remove(node, k[level]); not necessary
                                 N::change(parentNode, parentKey, secondNodeN);
 
-                                delete node;
+                                N::deleteNode(node);
                             } else {
                                 //N::remove(node, k[level]); not necessary
                                 N::change(parentNode, parentKey, secondNodeN);
                                 secondNodeN->addPrefixBefore(node, secondNodeK);
 
-                                delete node;
+                                N::deleteNode(node);
                             }
                         } else {
                             N::removeA(node, k[level], parentNode, parentKey);
